@@ -1,0 +1,44 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: ai-chatbot-backend
+    env: python
+    region: oregon
+    buildCommand: "cd backend && pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-chatbot-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-2.5-flash"
+      - key: TRANSFORMERS_OFFLINE
+        value: "0"
+
+  # Frontend Static Site
+  - type: web
+    name: ai-chatbot-frontend
+    env: static
+    region: oregon
+    buildCommand: "cd frontend && npm install && npm run build"
+    staticPublishPath: "./frontend/dist"
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ai-chatbot-backend
+          envVarKey: RENDER_EXTERNAL_URL
+
+
+databases:
+  # PostgreSQL Database
+  - name: ai-chatbot-db
+    databaseName: chatbot_db
+    user: chatbot_user
+    plan: free
+    region: oregon
