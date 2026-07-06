@@ -71,8 +71,9 @@ class Settings(BaseSettings):
         elif self.DATABASE_URL.startswith("postgresql://") and not self.DATABASE_URL.startswith("postgresql+asyncpg://"):
             self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-        # If in production, ensure CORS is open for the frontend
-        if not self.DEBUG and "http://localhost:5173" in self.CORS_ORIGINS:
+        # If in production (e.g. on Render) or DEBUG is False, ensure CORS is open
+        import os
+        if (not self.DEBUG or os.environ.get("RENDER")) and "http://localhost:5173" in self.CORS_ORIGINS:
             self.CORS_ORIGINS = ["*"]
 
 @lru_cache()
