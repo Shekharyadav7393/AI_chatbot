@@ -15,7 +15,7 @@ langchain-community==0.3.12
 langchain-text-splitters==0.3.3
 sentence-transformers==3.3.1
 transformers==4.46.3
-torch==2.5.1
+torch>=2.9.0
 # Optional production vector DB. On Windows + Python 3.12 it may require
 # Microsoft Visual C++ Build Tools because chroma-hnswlib builds natively.
 # The app falls back to a JSON vector store when chromadb is unavailable.
