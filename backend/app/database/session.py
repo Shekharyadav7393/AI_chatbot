@@ -32,6 +32,15 @@ async def init_db():
         Path("logs").mkdir(parents=True, exist_ok=True)
         logger.info("Runtime directories initialized successfully.")
         
+        # Log redacted database URL for debugging connection errors
+        db_url = settings.DATABASE_URL
+        if "@" in db_url:
+            db_url_parts = db_url.split("@")
+            redacted_url = "postgresql+asyncpg://<redacted>@" + db_url_parts[-1]
+        else:
+            redacted_url = db_url
+        logger.info(f"Database initialization connecting to: {redacted_url}")
+        
         # Seed default admin user
         from sqlalchemy import select
         from app.models.user import User, UserRole
