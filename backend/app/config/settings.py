@@ -59,6 +59,22 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    @property
+    def sync_database_url(self) -> str:
+        return self.DATABASE_URL.replace("+asyncpg", "")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Convert Render's postgres:// or postgresql:// to postgresql+asyncpg:// for async SQLAlchemy
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif self.DATABASE_URL.startswith("postgresql://") and not self.DATABASE_URL.startswith("postgresql+asyncpg://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+        # If in production, ensure CORS is open for the frontend
+        if not self.DEBUG and "http://localhost:5173" in self.CORS_ORIGINS:
+            self.CORS_ORIGINS = ["*"]
+
 @lru_cache()
 def get_settings() -> Settings:
     """Returns a cached instance of the settings."""

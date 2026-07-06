@@ -62,3 +62,9 @@
 {"timestamp": "2026-07-06 01:24:29,411", "level": "INFO", "name": "app.app.main", "message": "Starting up application..."}
 {"timestamp": "2026-07-06 01:24:29,412", "level": "INFO", "name": "app.database.session", "message": "Runtime directories initialized successfully."}
 {"timestamp": "2026-07-06 01:26:56,414", "level": "INFO", "name": "app.app.main", "message": "Shutting down application..."}
+{"timestamp": "2026-07-06 01:28:58,699", "level": "INFO", "name": "app.app.main", "message": "Starting up application..."}
+{"timestamp": "2026-07-06 01:28:58,700", "level": "INFO", "name": "app.database.session", "message": "Runtime directories initialized successfully."}
+{"timestamp": "2026-07-06 01:30:55,839", "level": "WARNING", "name": "app.app.vectorstore.chroma_store", "message": "chromadb is not installed; using JSON vector store fallback at vectorstore\\chroma\\fallback_vectors.json"}
+{"timestamp": "2026-07-06 01:30:55,881", "level": "INFO", "name": "app.app.embeddings.hf_embeddings", "message": "Loading embedding model: sentence-transformers/all-MiniLM-L6-v2"}
+{"timestamp": "2026-07-06 01:31:01,849", "level": "INFO", "name": "app.app.embeddings.hf_embeddings", "message": "Embedding model loaded successfully."}
+{"timestamp": "2026-07-06 01:38:49,339", "level": "INFO", "name": "app.app.main", "message": "Shutting down application..."}
