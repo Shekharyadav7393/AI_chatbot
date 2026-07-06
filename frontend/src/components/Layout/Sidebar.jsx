@@ -42,20 +42,24 @@ const Sidebar = () => {
           <span>Current Chat</span>
         </NavLink>
         
-        <NavLink to="/history" className={navLinkClass}>
-          <HiOutlineClock className="w-5 h-5" />
-          <span>History</span>
-        </NavLink>
-        
-        <NavLink to="/documents" className={navLinkClass}>
-          <HiOutlineDocumentText className="w-5 h-5" />
-          <span>Documents</span>
-        </NavLink>
-        
-        <NavLink to="/profile" className={navLinkClass}>
-          <HiOutlineUser className="w-5 h-5" />
-          <span>Profile</span>
-        </NavLink>
+        {user && (
+          <>
+            <NavLink to="/history" className={navLinkClass}>
+              <HiOutlineClock className="w-5 h-5" />
+              <span>History</span>
+            </NavLink>
+            
+            <NavLink to="/documents" className={navLinkClass}>
+              <HiOutlineDocumentText className="w-5 h-5" />
+              <span>Documents</span>
+            </NavLink>
+            
+            <NavLink to="/profile" className={navLinkClass}>
+              <HiOutlineUser className="w-5 h-5" />
+              <span>Profile</span>
+            </NavLink>
+          </>
+        )}
 
         {user?.role === 'admin' && (
           <>

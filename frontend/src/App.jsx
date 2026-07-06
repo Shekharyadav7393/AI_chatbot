@@ -27,11 +27,15 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/admin-login" element={<AdminLogin />} />
 
+          {/* Public Layout Routes */}
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/chat" element={<Chat />} />
+          </Route>
+
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/chat" replace />} />
-              <Route path="/chat" element={<Chat />} />
               <Route path="/history" element={<History />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/profile" element={<Profile />} />

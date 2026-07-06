@@ -1,4 +1,5 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { HiOutlineUserCircle, HiArrowRightOnRectangle } from 'react-icons/hi2';
 import useAuth from '../../hooks/useAuth';
 
@@ -17,7 +18,7 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        {user && (
+        {user ? (
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
@@ -39,6 +40,13 @@ const Navbar = () => {
               <HiArrowRightOnRectangle className="w-5 h-5" />
             </button>
           </div>
+        ) : (
+          <NavLink
+            to="/login"
+            className="text-sm font-medium text-slate-300 hover:text-white px-4 py-2 rounded-xl bg-slate-800 border border-slate-700/50 hover:bg-slate-700 transition-all"
+          >
+            Sign In
+          </NavLink>
         )}
       </div>
     </nav>

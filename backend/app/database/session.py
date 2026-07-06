@@ -25,15 +25,34 @@ async def get_db() -> AsyncSession: # type: ignore
             await session.close()
 
 async def init_db():
-    """Prepare local runtime directories.
-
-    Schema changes are managed by Alembic. Vector data is stored in a
-    separate persistent directory, so PostgreSQL does not need vector extensions.
-    """
+    """Prepare local runtime directories and seed initial admin user if not exists."""
     try:
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
         Path(settings.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
         Path("logs").mkdir(parents=True, exist_ok=True)
         logger.info("Runtime directories initialized successfully.")
+        
+        # Seed default admin user
+        from sqlalchemy import select
+        from app.models.user import User, UserRole
+        from app.utils.security import hash_password
+        
+        async with async_session_maker() as session:
+            stmt = select(User).where(User.email == "admin@supportdesk.com")
+            result = await session.execute(stmt)
+            admin = result.scalars().first()
+            if not admin:
+                new_admin = User(
+                    email="admin@supportdesk.com",
+                    username="admin",
+                    hashed_password=hash_password("AdminPassword123!"),
+                    role=UserRole.admin,
+                    is_active=True
+                )
+                session.add(new_admin)
+                await session.commit()
+                logger.info("Default admin user (admin@supportdesk.com) seeded successfully.")
+            else:
+                logger.info("Admin user already exists, skipping seed.")
     except Exception as e:
-        logger.error(f"Error initializing application directories: {e}")
+        logger.error(f"Error initializing application directories or seeding: {e}")
