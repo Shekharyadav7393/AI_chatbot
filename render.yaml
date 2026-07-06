@@ -1,32 +1,52 @@
 services:
-  # Backend Web Service
+  # =========================
+  # Backend
+  # =========================
   - type: web
     name: ai-chatbot-backend
     env: python
-    region: oregon
-    buildCommand: "cd backend && pip install -r requirements.txt && alembic upgrade head"
-    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+    rootDir: backend
+
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    autoDeploy: true
+
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: ai-chatbot-db
           property: connectionString
+
       - key: SECRET_KEY
         generateValue: true
+
       - key: GEMINI_API_KEY
         sync: false
+
       - key: GEMINI_MODEL
-        value: "gemini-2.5-flash"
+        value: gemini-2.5-flash
+
       - key: TRANSFORMERS_OFFLINE
         value: "0"
 
-  # Frontend Static Site
+  # =========================
+  # Frontend
+  # =========================
   - type: web
     name: ai-chatbot-frontend
     env: static
-    region: oregon
-    buildCommand: "cd frontend && npm install && npm run build"
-    staticPublishPath: "./frontend/dist"
+
+    rootDir: frontend
+
+    buildCommand: npm install && npm run build
+
+    staticPublishPath: dist
+
+    autoDeploy: true
+
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -34,11 +54,12 @@ services:
           name: ai-chatbot-backend
           envVarKey: RENDER_EXTERNAL_URL
 
+# =========================
+# PostgreSQL
+# =========================
 
 databases:
-  # PostgreSQL Database
   - name: ai-chatbot-db
     databaseName: chatbot_db
     user: chatbot_user
     plan: free
-    region: oregon

@@ -1,31 +1,34 @@
+# Core Framework
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+
+# Database
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
 alembic==1.14.0
+
+# Validation & Settings
 pydantic==2.10.3
 pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# Auth
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+
+# File Handling
 python-multipart==0.0.19
-langchain==0.3.12
-langchain-core==0.3.25
-langchain-community==0.3.12
-langchain-text-splitters==0.3.3
-sentence-transformers==3.3.1
-transformers==4.46.3
-torch>=2.9.0
-# Optional production vector DB. On Windows + Python 3.12 it may require
-# Microsoft Visual C++ Build Tools because chroma-hnswlib builds natively.
-# The app falls back to a JSON vector store when chromadb is unavailable.
-# chromadb==0.5.23
+aiofiles==24.1.0
 pypdf==5.1.0
 docx2txt==0.8
-slowapi==0.1.9
-python-dotenv==1.0.1
-aiofiles==24.1.0
+
+# AI - Gemini API (lightweight, no torch)
 httpx==0.28.0
-email-validator==2.2.0
-pytest==8.3.4
-pytest-asyncio==0.25.0
+google-generativeai==0.8.5
+
+# Rate Limiting & CORS
+slowapi==0.1.9
+
+# Environment
+python-dotenv==1.0.1

@@ -1,11 +1,12 @@
 import os
 import uuid
 from pathlib import Path
+from typing import Any
 
 import aiofiles
+import pypdf
+import docx2txt
 from fastapi import UploadFile
-from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import get_settings
@@ -96,10 +97,11 @@ class DocumentService:
             return
 
         try:
-            loaded_docs = self._load_document(doc.file_path, doc.file_type)
-            chunks = self._split_documents(loaded_docs)
-            chunk_texts = [chunk.page_content.strip() for chunk in chunks if chunk.page_content.strip()]
-            metadatas = [chunk.metadata for chunk in chunks if chunk.page_content.strip()]
+            pages_data = self._load_document(doc.file_path, doc.file_type)
+            chunk_texts, metadatas = self._split_documents(pages_data, doc.filename)
+            
+            chunk_texts = [text.strip() for text in chunk_texts if text.strip()]
+            metadatas = metadatas[:len(chunk_texts)]
 
             embeddings = get_embedding_service().embed_texts(chunk_texts)
             ChromaVectorStore().add_document_chunks(doc, chunk_texts, embeddings, metadatas)
@@ -110,24 +112,77 @@ class DocumentService:
             logger.error("Error processing document %s: %s", document_id, e)
             await self.doc_repo.update_status(document_id, DocumentStatus.failed)
 
-    def _load_document(self, file_path: str, file_type: str):
+    def _load_document(self, file_path: str, file_type: str) -> list[dict[str, Any]]:
+        """Loads a document and returns a list of pages with page_content and metadata."""
+        pages = []
         if file_type == "pdf":
-            loader = PyPDFLoader(file_path)
+            reader = pypdf.PdfReader(file_path)
+            for page_num, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
+                pages.append({
+                    "page_content": text,
+                    "metadata": {"page": page_num + 1}
+                })
         elif file_type == "docx":
-            loader = Docx2txtLoader(file_path)
+            text = docx2txt.process(file_path)
+            pages.append({
+                "page_content": text,
+                "metadata": {"page": 1}
+            })
         elif file_type == "txt":
-            loader = TextLoader(file_path, encoding="utf-8")
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+            pages.append({
+                "page_content": text,
+                "metadata": {"page": 1}
+            })
         else:
             raise ValueError("Unsupported document type")
-        return loader.load()
+        return pages
 
-    def _split_documents(self, docs):
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=settings.CHUNK_SIZE,
-            chunk_overlap=settings.CHUNK_OVERLAP,
-            separators=["\n\n", "\n", ". ", " ", ""],
-        )
-        return text_splitter.split_documents(docs)
+    def _split_documents(self, pages: list[dict[str, Any]], filename: str) -> tuple[list[str], list[dict[str, Any]]]:
+        """A simple, pure-Python recursive-like character text splitter that mimics the chunking logic
+
+        without LangChain dependencies.
+        """
+        chunk_size = settings.CHUNK_SIZE
+        chunk_overlap = settings.CHUNK_OVERLAP
+        
+        chunk_texts = []
+        metadatas = []
+        
+        for page in pages:
+            text = page["page_content"]
+            page_meta = page["metadata"]
+            
+            start = 0
+            while start < len(text):
+                end = start + chunk_size
+                # Try to find a nice place to split (e.g. newline or space)
+                if end < len(text):
+                    # Look back up to chunk_overlap for a separator
+                    last_sep = -1
+                    for sep in ["\n\n", "\n", ". ", " "]:
+                        pos = text.rfind(sep, start + chunk_size - chunk_overlap, end)
+                        if pos != -1:
+                            last_sep = pos + len(sep)
+                            break
+                    if last_sep != -1:
+                        end = last_sep
+                
+                chunk = text[start:end]
+                if chunk.strip():
+                    chunk_texts.append(chunk)
+                    metadatas.append({
+                        "page": page_meta.get("page", 1),
+                        "source": filename
+                    })
+                
+                start = end - chunk_overlap if end < len(text) else end
+                if start >= len(text) or (end >= len(text)):
+                    break
+                    
+        return chunk_texts, metadatas
 
 
 async def process_document_background(document_id: uuid.UUID) -> None:

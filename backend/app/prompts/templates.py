@@ -1,4 +1,7 @@
-from langchain_core.prompts import PromptTemplate
+"""Prompt templates — plain Python strings.
+
+No langchain dependency. Templates use Python's str.format() placeholders.
+"""
 
 # ---------------------------------------------------------------------------
 # RAG (Knowledge Retrieval) Prompts
@@ -32,12 +35,9 @@ Grounded Answer:"""
 
 NO_CONTEXT_RESPONSE = "I'm sorry, but I couldn't find that information in the uploaded company documents."
 
-def get_rag_prompt() -> PromptTemplate:
-    return PromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
-
 
 # ---------------------------------------------------------------------------
-# General Knowledge Fallback Prompts (Rule 2 & 3)
+# General Knowledge Fallback Prompts
 # ---------------------------------------------------------------------------
 
 GENERAL_SYSTEM_PROMPT = """You are an advanced AI Support Desk Assistant.
@@ -59,6 +59,3 @@ Current User Question: {question}
 Please provide a helpful and direct answer to the Current User Question based on the conversation context.
 
 Helpful Answer:"""
-
-def get_general_prompt() -> PromptTemplate:
-    return PromptTemplate.from_template(GENERAL_PROMPT_TEMPLATE)

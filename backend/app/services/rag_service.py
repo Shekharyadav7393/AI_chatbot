@@ -1,7 +1,11 @@
+"""RAG service — orchestrates retrieval-augmented generation.
+
+Completely rewritten to remove langchain dependency. Uses plain Python
+string formatting for prompts and the Gemini REST service for generation.
+"""
+
 import uuid
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import get_settings
@@ -11,15 +15,14 @@ from app.prompts.templates import (
     NO_CONTEXT_RESPONSE,
     SYSTEM_PROMPT,
     GENERAL_SYSTEM_PROMPT,
-    get_rag_prompt,
-    get_general_prompt,
+    RAG_PROMPT_TEMPLATE,
+    GENERAL_PROMPT_TEMPLATE,
 )
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.message_repository import MessageRepository
 from app.schemas.chat import ChatResponse
 from app.schemas.message import MessageResponse
 from app.services.gemini_service import get_gemini_llm_service
-from app.services.local_llm_service import get_local_llm_service
 from app.utils.exceptions import NotFoundError, RAGError
 from app.utils.helpers import truncate_text
 from app.utils.logger import get_logger
@@ -53,7 +56,7 @@ class RAGService:
         # Try to find relevant documents first
         try:
             embedding_service = get_embedding_service()
-            query_embedding = embedding_service.embed_text(message)
+            query_embedding = embedding_service.embed_query(message)
             results = await self.retriever.similarity_search(
                 query_embedding,
                 top_k=settings.TOP_K_RESULTS,
@@ -75,18 +78,17 @@ class RAGService:
                 }
                 for res in results
             ]
-            
+
             try:
-                assistant_response = await self._generate_answer(context, chat_history, message)
+                assistant_response = await self._generate_rag_answer(context, chat_history, message)
             except Exception as exc:
                 logger.error("RAG generation failed: %s, falling back to general...", exc)
                 assistant_response = None
-                
+
             if not assistant_response or assistant_response == NO_CONTEXT_RESPONSE:
-                # Seamless fallback if document context didn't actually contain the answer
                 try:
                     assistant_response = await self._generate_general_answer(chat_history, message)
-                    sources = []  # Clear sources since we fell back to general knowledge
+                    sources = []
                 except Exception as exc:
                     logger.error("General fallback generation failed: %s", exc)
                     assistant_response = NO_CONTEXT_RESPONSE
@@ -112,6 +114,8 @@ class RAGService:
             await self.chat_repo.update(chat_id, {})
 
         return ChatResponse(chat_id=chat_id, message=MessageResponse.model_validate(assistant_msg))
+
+    # ------------------------------------------------------------------ helpers
 
     async def _resolve_chat(
         self,
@@ -143,72 +147,23 @@ class RAGService:
             formatted.append(f"{role}: {truncate_text(msg.content, max_length=700)}")
         return "\n".join(formatted)
 
-    async def _generate_with_fallback(self, primary_llm, prompt_template, input_data: dict) -> str:
-        """Invoke primary LLM, fall back immediately to local offline model if primary fails (e.g. Quota Exceeded)."""
-        async def call_llm(prompt_value):
-            prompt = prompt_value.to_string() if hasattr(prompt_value, "to_string") else str(prompt_value)
-            return await primary_llm.generate(prompt)
-
-        primary_chain = prompt_template | RunnableLambda(call_llm) | StrOutputParser()
-        try:
-            # Try configured primary model
-            answer = await primary_chain.ainvoke(input_data)
-            return answer.strip()
-        except Exception as exc:
-            logger.warning("Primary LLM service failed: %s. Falling back to local offline model...", exc)
-            
-            # Switch to local model
-            local_llm = get_local_llm_service()
-            async def call_local_llm(prompt_value):
-                prompt = prompt_value.to_string() if hasattr(prompt_value, "to_string") else str(prompt_value)
-                return await local_llm.generate(prompt)
-                
-            local_chain = prompt_template | RunnableLambda(call_local_llm) | StrOutputParser()
-            try:
-                answer = await local_chain.ainvoke(input_data)
-                return answer.strip()
-            except Exception as local_exc:
-                logger.error("Local LLM fallback failed: %s", local_exc)
-                raise
-
-    async def _generate_answer(self, context: str, chat_history: str, question: str) -> str:
-        llm = self._get_llm_service()
-        try:
-            return await self._generate_with_fallback(
-                llm,
-                get_rag_prompt(),
-                {
-                    "system_prompt": SYSTEM_PROMPT,
-                    "context": context,
-                    "chat_history": chat_history,
-                    "question": question,
-                }
-            )
-        except Exception as exc:
-            logger.error("RAG generation failed: %s", exc)
-            raise
+    async def _generate_rag_answer(self, context: str, chat_history: str, question: str) -> str:
+        """Build RAG prompt and call Gemini."""
+        prompt = RAG_PROMPT_TEMPLATE.format(
+            system_prompt=SYSTEM_PROMPT,
+            context=context,
+            chat_history=chat_history,
+            question=question,
+        )
+        llm = get_gemini_llm_service()
+        return await llm.generate(prompt)
 
     async def _generate_general_answer(self, chat_history: str, question: str) -> str:
-        """Generate a general knowledge answer when no company documents match."""
-        llm = self._get_llm_service()
-        try:
-            return await self._generate_with_fallback(
-                llm,
-                get_general_prompt(),
-                {
-                    "system_prompt": GENERAL_SYSTEM_PROMPT,
-                    "chat_history": chat_history,
-                    "question": question,
-                }
-            )
-        except Exception as exc:
-            logger.error("General answer generation failed: %s", exc)
-            raise
-
-    def _get_llm_service(self):
-        provider = settings.AI_PROVIDER.lower()
-        if provider == "gemini" or (provider == "auto" and settings.GEMINI_API_KEY):
-            return get_gemini_llm_service()
-        if provider in {"auto", "local"}:
-            return get_local_llm_service()
-        raise RAGError("AI_PROVIDER must be one of: auto, gemini, local")
+        """Build general prompt and call Gemini."""
+        prompt = GENERAL_PROMPT_TEMPLATE.format(
+            system_prompt=GENERAL_SYSTEM_PROMPT,
+            chat_history=chat_history,
+            question=question,
+        )
+        llm = get_gemini_llm_service()
+        return await llm.generate(prompt)

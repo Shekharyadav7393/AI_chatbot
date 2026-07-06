@@ -1,3 +1,9 @@
+"""Gemini LLM service — lightweight REST client.
+
+Uses httpx directly to call the Gemini generateContent API.
+No langchain, no torch, no heavy dependencies.
+"""
+
 import httpx
 
 from app.config.settings import get_settings
