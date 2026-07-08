@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { HiOutlineUser, HiOutlineMail } from 'react-icons/hi2';
+import { HiOutlineUser, HiOutlineEnvelope } from 'react-icons/hi2';
 import { toast } from 'react-hot-toast';
 import useChat from '../hooks/useChat';
 import useAuth from '../hooks/useAuth';
@@ -99,7 +99,7 @@ const Chat = () => {
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <HiOutlineMail className="h-5 w-5 text-slate-500" />
+                  <HiOutlineEnvelope className="h-5 w-5 text-slate-500" />
                 </div>
                 <input
                   type="email"

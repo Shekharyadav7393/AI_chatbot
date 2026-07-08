@@ -71,10 +71,46 @@ class Settings(BaseSettings):
         elif self.DATABASE_URL.startswith("postgresql://") and not self.DATABASE_URL.startswith("postgresql+asyncpg://"):
             self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-        # If in production (e.g. on Render) or DEBUG is False, ensure CORS is open
+        # Strip sslmode from DATABASE_URL if present, as asyncpg doesn't support it
+        if "sslmode=" in self.DATABASE_URL:
+            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+            parsed = urlparse(self.DATABASE_URL)
+            query = parse_qs(parsed.query)
+            query.pop("sslmode", None)
+            new_query = urlencode(query, doseq=True)
+            self.DATABASE_URL = urlunparse(parsed._replace(query=new_query))
+            
+        # Map Render's SECRET_KEY to JWT_SECRET_KEY if JWT_SECRET_KEY is default or not set
         import os
-        if (not self.DEBUG or os.environ.get("RENDER")) and "http://localhost:5173" in self.CORS_ORIGINS:
-            self.CORS_ORIGINS = ["*"]
+        secret_key_env = os.environ.get("SECRET_KEY")
+        if secret_key_env and (self.JWT_SECRET_KEY == "super-secret-key" or not os.environ.get("JWT_SECRET_KEY")):
+            self.JWT_SECRET_KEY = secret_key_env
+
+        # Parse CORS_ORIGINS from environment variable if it's set as a string
+        import json
+        cors_env = os.environ.get("CORS_ORIGINS")
+        if cors_env:
+            try:
+                # Try parsing as JSON list
+                parsed = json.loads(cors_env)
+                if isinstance(parsed, list):
+                    self.CORS_ORIGINS = parsed
+                elif isinstance(parsed, str):
+                    self.CORS_ORIGINS = [parsed]
+            except Exception:
+                # Fallback to comma-separated list
+                self.CORS_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+        
+        # Also allow FRONTEND_URL if provided
+        frontend_url = os.environ.get("FRONTEND_URL")
+        if frontend_url and frontend_url not in self.CORS_ORIGINS:
+            self.CORS_ORIGINS.append(frontend_url)
+            
+        # If in production (e.g. on Render) or DEBUG is False, and no explicit CORS configuration is provided
+        if (not self.DEBUG or os.environ.get("RENDER")) and not os.environ.get("CORS_ORIGINS") and not os.environ.get("FRONTEND_URL"):
+            if "http://localhost:5173" in self.CORS_ORIGINS:
+                self.CORS_ORIGINS = ["*"]
+
 
 @lru_cache()
 def get_settings() -> Settings:

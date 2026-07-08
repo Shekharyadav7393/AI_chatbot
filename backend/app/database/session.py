@@ -6,10 +6,15 @@ from app.config.settings import get_settings
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+connect_args = {}
+if "localhost" not in settings.DATABASE_URL and "127.0.0.1" not in settings.DATABASE_URL:
+    connect_args["ssl"] = True
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
     future=True,
+    connect_args=connect_args,
 )
 
 async_session_maker = async_sessionmaker(
@@ -25,7 +30,7 @@ async def get_db() -> AsyncSession: # type: ignore
             await session.close()
 
 async def init_db():
-    """Prepare local runtime directories and seed initial admin user if not exists."""
+    """Prepare local runtime directories, verify/create tables, and seed initial admin user."""
     try:
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
         Path(settings.CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
@@ -40,6 +45,14 @@ async def init_db():
         else:
             redacted_url = db_url
         logger.info(f"Database initialization connecting to: {redacted_url}")
+        
+        # Ensure all tables exist
+        from app.database.base import Base
+        from app.models import User, Document, Chat, Message, Session, Feedback # Register models
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables verified/created via metadata successfully.")
         
         # Seed default admin user
         from sqlalchemy import select
@@ -65,3 +78,4 @@ async def init_db():
                 logger.info("Admin user already exists, skipping seed.")
     except Exception as e:
         logger.error(f"Error initializing application directories or seeding: {e}")
+
