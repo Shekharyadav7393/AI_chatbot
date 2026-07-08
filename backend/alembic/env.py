@@ -41,7 +41,11 @@ async def run_async_migrations() -> None:
     connect_args = {}
     db_url = settings.DATABASE_URL
     if "localhost" not in db_url and "127.0.0.1" not in db_url:
-        connect_args["ssl"] = True
+        import ssl
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ssl_context
 
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
